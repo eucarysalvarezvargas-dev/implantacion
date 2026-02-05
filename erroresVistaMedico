@@ -1,0 +1,57 @@
+1)en dashboard en la seccion agenda del dia en el boton ver todas sale el siguiente error: syntax error, unexpected
+token "catch", expecting "function"
+C:\laragon\www\SisreservaMedicasOring\app\Http\Controllers\CitaController
+.php
+ 
+: 1185
+{closure:Composer\Autoload\ClassLoader::initializeIncludeClosure():575}
+C:\laragon\www\SisreservaMedicasOring\public\index
+.php
+ 
+: 51
+[top]
+en esta parte se deben mostrar las citas que tiene el medico logueado
+
+2) en el menu lateral en el boton de mis citas sale el mismo error:
+
+C:\laragon\www\SisreservaMedicasOring\app\Http\Controllers\CitaController
+.php
+ 
+: 1185
+{closure:Composer\Autoload\ClassLoader::initializeIncludeClosure():575}
+
+3) en el boton del menu lateral de mis paceintes cuando entro a esa vista y en la tabla de la lista de paciente en la
+columna acciones presiono la accion Historia para verl el historial bbase del paciente sale el siguiente erro: App
+View [pacientes.historia-clinica] not found.
+pacientes.historia-clinica was not found.
+Are you sure the view exists and is a .blade.php file?
+
+ \ 
+Http
+ \ 
+Controllers
+ \ 
+PacienteController
+ 
+: 548
+historiaClinica
+
+C:\laragon\www\SisreservaMedicasOring\public\index
+.php
+ 
+: 51
+[top]
+
+4) En el dashboard en la seccion de acciones rapidas el boton nueva evolucion lansza tambien un error: syntax error,
+unexpected token "catch", expecting "function"
+
+C:\laragon\www\SisreservaMedicasOring\app\Http\Controllers\CitaController
+.php
+ 
+: 1185
+{closure:Composer\Autoload\ClassLoader::initializeIncludeClosure():575}
+
+
+todos esos errores antes no aparecian verifica el porque salen esos errores y solucionalos por favor. recuerda que los
+medicos logueados solo pueden ver los pacientes que tengan relacion con eelos es decir de que almenos una vez el
+paciente, representante, paciente especial hayan tenido al menos una cita

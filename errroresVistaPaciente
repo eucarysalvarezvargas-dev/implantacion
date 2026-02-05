@@ -1,0 +1,19 @@
+1) Dasboard del paciente en el menu de arriba el boton de mis citas sale el siguiente error: 
+syntax error, unexpected token "catch", expecting "function"
+
+C:\laragon\www\SisreservaMedicasOring\app\Http\Controllers\CitaController
+.php
+ 
+: 1185
+{closure:Composer\Autoload\ClassLoader::initializeIncludeClosure():575}
+
+2) en el boton de nueva cita mismo error: syntax error, unexpected token "catch", expecting "function"
+
+C:\laragon\www\SisreservaMedicasOring\app\Http\Controllers\CitaController
+.php
+ 
+: 1185
+{closure:Composer\Autoload\ClassLoader::initializeIncludeClosure():575}
+ estos errores antes no aparecian verifica el porque salen esos errores y solucionalos por favor esta es en las vista del paciente.
+
+  en la vista para el administrador root tambien sale el mismo error al presionar citas .

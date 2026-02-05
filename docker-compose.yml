@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Servicio de la aplicación Laravel
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reservamedica_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./storage/app/public:/var/www/html/storage/app/public
+    networks:
+      - reservamedica_network
+    depends_on:
+      - mysql
+      - redis
+
+  # Servidor Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: reservamedica_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - reservamedica_network
+    depends_on:
+      - app
+
+  # Base de datos MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: reservamedica_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: reservamedica
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_PASSWORD: reservamedica_password
+      MYSQL_USER: reservamedica_user
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - reservamedica_network
+
+  # Redis para caché y sesiones
+  redis:
+    image: redis:7-alpine
+    container_name: reservamedica_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - reservamedica_network
+
+  # PhpMyAdmin (opcional, para administración de MySQL)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: reservamedica_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+    networks:
+      - reservamedica_network
+    depends_on:
+      - mysql
+
+networks:
+  reservamedica_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local

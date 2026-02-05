@@ -1,0 +1,934 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Medico;
+use App\Models\Usuario;
+use App\Models\Especialidad;
+use App\Models\Consultorio;
+use App\Models\Estado;
+use App\Models\Ciudad;
+use App\Models\Municipio;
+use App\Models\Parroquia;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class MedicoController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if ($user && $user->administrador && $user->administrador->tipo_admin !== 'Root') {
+                $restrictedActions = ['create', 'store', 'edit', 'update', 'destroy'];
+                if (in_array($request->route()->getActionMethod(), $restrictedActions)) {
+                    abort(403, 'Solo el Administrador Root puede realizar esta acción.');
+                }
+            }
+            return $next($request);
+        })->only(['create', 'store', 'edit', 'update', 'destroy']);
+    }
+
+    public function dashboard()
+    {
+        $medico = auth()->user()->medico;
+        
+        // Citas de hoy ordenadas por estado (Confirmada > Programada > otras)
+        $citasHoy = \App\Models\Cita::with(['paciente', 'especialidad', 'consultorio'])
+                                   ->where('medico_id', $medico->id)
+                                   ->whereDate('fecha_cita', today())
+                                   ->where('status', true)
+                                   ->orderByRaw("FIELD(estado_cita, 'Confirmada', 'En Progreso', 'Programada', 'Completada', 'Cancelada', 'No Asistió')")
+                                   ->orderBy('hora_inicio', 'asc')
+                                   ->get();
+
+        $proximasCitas = \App\Models\Cita::with(['paciente', 'especialidad', 'consultorio'])
+                                        ->where('medico_id', $medico->id)
+                                        ->where('fecha_cita', '>=', today())
+                                        ->where('status', true)
+                                        ->orderByRaw("FIELD(estado_cita, 'Confirmada', 'En Progreso', 'Programada', 'Completada', 'Cancelada', 'No Asistió')")
+                                        ->orderBy('fecha_cita', 'asc')
+                                        ->orderBy('hora_inicio', 'asc')
+                                        ->limit(10)
+                                        ->get();
+        
+        // Estadísticas para las tarjetas
+        $hoy = \Carbon\Carbon::today();
+        $stats = [
+            'citas_hoy' => $citasHoy->count(),
+            'completadas_hoy' => $citasHoy->where('estado_cita', 'Completada')->count(),
+            'pacientes_mes' => \App\Models\Cita::where('medico_id', $medico->id)
+                                              ->whereMonth('fecha_cita', $hoy->month)
+                                              ->whereYear('fecha_cita', $hoy->year)
+                                              ->where('status', true)
+                                              ->distinct('paciente_id')
+                                              ->count('paciente_id'),
+            // Pacientes nuevos este mes (creados este mes y atendidos por este médico)
+            'pacientes_nuevos' => \App\Models\Paciente::whereMonth('created_at', $hoy->month)
+                                                      ->whereYear('created_at', $hoy->year)
+                                                      ->whereHas('citas', function($q) use ($medico, $hoy) {
+                                                          $q->where('medico_id', $medico->id)
+                                                            ->whereMonth('fecha_cita', $hoy->month)
+                                                            ->whereYear('fecha_cita', $hoy->year);
+                                                      })
+                                                      ->count(),
+            // Historias pendientes (Citas completadas sin evolución registrada)
+            'historias_pendientes' => \App\Models\Cita::where('medico_id', $medico->id)
+                                                      ->whereIn('estado_cita', ['Completada', 'En Progreso'])
+                                                      ->doesntHave('evolucionClinica')
+                                                      ->where('status', true)
+                                                      ->count(),
+            // Órdenes médicas pendientes
+            'ordenes_pendientes' => \App\Models\OrdenMedica::where('medico_id', $medico->id)
+                                                           ->where('estado_orden', 'Pendiente')
+                                                           ->where('status', true)
+                                                           ->count(),
+            // Laboratorios pendientes
+            'laboratorios_pendientes' => \App\Models\OrdenMedica::where('medico_id', $medico->id)
+                                                               ->where('tipo_orden', 'Laboratorio')
+                                                               ->where('estado_orden', 'Pendiente')
+                                                               ->where('status', true)
+                                                               ->count(),
+        ];
+
+        return view('medico.dashboard', compact('citasHoy', 'proximasCitas', 'stats'));
+    }
+
+    public function index(Request $request)
+    {
+        $query = Medico::with(['usuario', 'especialidades', 'estado']);
+
+        // Filtro de Búsqueda
+        if ($request->filled('buscar')) {
+            $busqueda = $request->buscar;
+            $query->where(function($q) use ($busqueda) {
+                $q->where('primer_nombre', 'like', "%$busqueda%")
+                  ->orWhere('segundo_nombre', 'like', "%$busqueda%")
+                  ->orWhere('primer_apellido', 'like', "%$busqueda%")
+                  ->orWhere('segundo_apellido', 'like', "%$busqueda%")
+                  ->orWhere('numero_documento', 'like', "%$busqueda%")
+                  ->orWhere('nro_colegiatura', 'like', "%$busqueda%");
+            });
+        }
+
+        // Filtro por Especialidad
+        if ($request->filled('especialidad_id')) {
+            $query->whereHas('especialidades', function($q) use ($request) {
+                $q->where('especialidades.id', $request->especialidad_id);
+            });
+        }
+
+        // Filtro por Estatus
+        if ($request->has('status') && $request->status !== null) {
+            $query->where('status', $request->status);
+        }
+
+        $medicos = $query->paginate(10)->withQueryString();
+        // Filtro de especialidades según rol
+        if (auth()->check() && auth()->user()->administrador && auth()->user()->administrador->tipo_admin !== 'Root') {
+            $consultorioIds = auth()->user()->administrador->consultorios->pluck('id');
+            $especialidades = Especialidad::where('status', true)
+                ->whereHas('consultorios', function($q) use ($consultorioIds) {
+                    $q->whereIn('consultorios.id', $consultorioIds);
+                })->get();
+        } else {
+            $especialidades = Especialidad::where('status', true)->get();
+        }
+
+        // Estadísticas para las tarjetas
+        $totalMedicos = Medico::count();
+        $medicosActivos = Medico::where('status', true)->count();
+        $citasHoyCount = \App\Models\Cita::whereDate('fecha_cita', now())->where('status', true)->count();
+        $totalEspecialidades = $especialidades->count();
+
+        return view('shared.medicos.index', compact('medicos', 'especialidades', 'totalMedicos', 'medicosActivos', 'citasHoyCount', 'totalEspecialidades'));
+    }
+
+    public function create()
+    {
+        $usuarios = Usuario::where('status', true)->where('rol_id', 2)
+                          ->whereNotIn('id', function($query) {
+                              $query->select('user_id')->from('medicos')->whereNotNull('user_id');
+                          })->get();
+
+        $especialidades = Especialidad::where('status', true)->get();
+        $estados = Estado::where('status', true)->get();
+        
+        return view('shared.medicos.create', compact('usuarios', 'especialidades', 'estados'));
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'primer_nombre' => ['required', 'max:100', 'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/'],
+            'primer_apellido' => ['required', 'max:100', 'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/'],
+            'tipo_documento' => 'nullable|in:V,E,P,J',
+            'numero_documento' => 'nullable|max:20',
+            'fecha_nac' => 'nullable|date',
+            'estado_id' => 'nullable|exists:estados,id_estado',
+            'ciudad_id' => 'nullable|exists:ciudades,id_ciudad',
+            'municipio_id' => 'nullable|exists:municipios,id_municipio',
+            'parroquia_id' => 'nullable|exists:parroquias,id_parroquia',
+            'prefijo_tlf' => 'nullable|in:+58,+57,+1,+34',
+            'numero_tlf' => 'nullable|max:15',
+            'genero' => 'nullable|max:20',
+            'nro_colegiatura' => 'nullable|max:50',
+            'formacion_academica' => 'nullable|string',
+            'experiencia_profesional' => 'nullable|string',
+            'especialidades' => 'required|array',
+            'especialidades.*' => 'exists:especialidades,id',
+            'especialidades_data' => 'required|array',
+            'especialidades_data.*.tarifa' => 'required|numeric|min:0',
+            'especialidades_data.*.anos_experiencia' => 'nullable|integer|min:0',
+            'especialidades_data.*.atiende_domicilio' => 'nullable|boolean',
+            'especialidades_data.*.tarifa_extra_domicilio' => 'nullable|numeric|min:0',
+            // User credentials
+            'correo' => 'required|email|unique:usuarios,correo',
+            'password' => 'required|min:8|confirmed'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+                // 1. Create User
+                $usuario = Usuario::create([
+                    'rol_id' => 2, // Medico
+                    'correo' => $request->correo,
+                    'password' => $request->password,
+                    'status' => $request->has('status')
+                ]);
+
+                // 2. Create Medico Profile
+                $medicoData = $request->except(['correo', 'password', 'password_confirmation', 'especialidades', 'especialidades_data', 'status']);
+                $medicoData['user_id'] = $usuario->id;
+                $medicoData['status'] = $request->has('status');
+
+                $medico = Medico::create($medicoData);
+                
+                // 3. Assign Specialties with Pivot Data
+                if ($request->has('especialidades_data')) {
+                    $syncData = [];
+                    foreach ($request->especialidades_data as $id => $data) {
+                        $syncData[$id] = [
+                            'tarifa' => $data['tarifa'],
+                            'anos_experiencia' => $data['anos_experiencia'] ?? 0,
+                            'atiende_domicilio' => isset($data['atiende_domicilio']) ? 1 : 0,
+                            'tarifa_extra_domicilio' => $data['tarifa_extra_domicilio'] ?? 0.00,
+                            'status' => true
+                        ];
+                    }
+                    $medico->especialidades()->attach($syncData);
+                }
+
+                // Notificar a todos los administradores (root y locales)
+                $admins = \App\Models\Administrador::where('status', true)->get();
+                foreach ($admins as $admin) {
+                    $admin->notify(new \App\Notifications\Admin\NuevoMedicoRegistrado($medico, auth()->user()->administrador->tipo_admin ?? 'Root'));
+                }
+            });
+
+            return redirect()->route('medicos.index')->with('success', 'Médico creado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error al crear el médico: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function show($id)
+    {
+        $medico = Medico::with([
+            'usuario', 
+            'especialidades', 
+            'consultorios', 
+            'estado', 
+            'ciudad',
+            'horarios.consultorio',
+            'horarios.especialidad'
+        ])->findOrFail($id);
+        return view('shared.medicos.show', compact('medico'));
+    }
+
+    public function edit($id)
+    {
+        $medico = Medico::findOrFail($id);
+        $usuarios = Usuario::where('status', true)->where('rol_id', 2)->get();
+        $especialidades = Especialidad::where('status', true)->get();
+        $estados = Estado::where('status', true)->get();
+        $ciudades = Ciudad::where('status', true)->get();
+        $municipios = Municipio::where('status', true)->get();
+        $parroquias = Parroquia::where('status', true)->get();
+
+        return view('shared.medicos.edit', compact('medico', 'usuarios', 'especialidades', 'estados', 'ciudades', 'municipios', 'parroquias'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|exists:usuarios,id|unique:medicos,user_id,' . $id,
+            'primer_nombre' => ['required', 'max:100', 'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/'],
+            'primer_apellido' => ['required', 'max:100', 'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/'],
+            'tipo_documento' => 'nullable|in:V,E,P,J',
+            'numero_documento' => 'nullable|max:20',
+            'fecha_nac' => 'nullable|date',
+            'estado_id' => 'nullable|exists:estados,id_estado',
+            'ciudad_id' => 'nullable|exists:ciudades,id_ciudad',
+            'municipio_id' => 'nullable|exists:municipios,id_municipio',
+            'parroquia_id' => 'nullable|exists:parroquias,id_parroquia',
+            'prefijo_tlf' => 'nullable|in:+58,+57,+1,+34',
+            'numero_tlf' => 'nullable|max:15',
+            'genero' => 'nullable|max:20',
+            'nro_colegiatura' => 'nullable|max:50',
+            'formacion_academica' => 'nullable|string',
+            'experiencia_profesional' => 'nullable|string',
+            'especialidades' => 'required|array',
+            'especialidades.*' => 'exists:especialidades,id',
+            'especialidades_data' => 'required|array',
+            'especialidades_data.*.tarifa' => 'required|numeric|min:0',
+            'especialidades_data.*.anos_experiencia' => 'nullable|integer|min:0',
+            'especialidades_data.*.atiende_domicilio' => 'nullable|boolean',
+            'especialidades_data.*.tarifa_extra_domicilio' => 'nullable|numeric|min:0',
+            'password' => 'nullable|min:8|confirmed'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $medico = Medico::findOrFail($id);
+        
+        // Excluir datos sensibles y de relación de usuario
+        $data = $request->except(['especialidades', 'especialidades_data', 'user_id', 'correo', 'password', 'password_confirmation']);
+        $data['status'] = $request->has('status'); // Si se envía status en el form
+
+        $medico->update($data);
+
+        // Update User Password if provided
+        if ($request->filled('password')) {
+            $medico->usuario->update([
+                'password' => $request->password // Mutator handles encryption
+            ]);
+        }
+
+
+        
+        // Sincronizar especialidades con datos pivote
+        if ($request->has('especialidades_data')) {
+            $syncData = [];
+            foreach ($request->especialidades_data as $idEsp => $pivotData) {
+                // Ensure ID corresponds to the loop key if needed, or use $pivotData['id']
+                // The form sends especialidades_data[ID][field]
+                $syncData[$idEsp] = [
+                    'tarifa' => $pivotData['tarifa'],
+                    'anos_experiencia' => $pivotData['anos_experiencia'] ?? 0,
+                    'atiende_domicilio' => isset($pivotData['atiende_domicilio']) ? 1 : 0,
+                    'tarifa_extra_domicilio' => $pivotData['tarifa_extra_domicilio'] ?? 0.00,
+                    'status' => true
+                ];
+            }
+            $medico->especialidades()->sync($syncData);
+        }
+
+        return redirect()->route('medicos.index')->with('success', 'Médico actualizado exitosamente');
+    }
+
+    public function destroy($id)
+    {
+        $medico = Medico::findOrFail($id);
+        $medico->update(['status' => false]);
+
+        return redirect()->route('medicos.index')->with('success', 'Médico desactivado exitosamente');
+    }
+
+    public function horarios($id)
+    {
+        $medico = Medico::with('especialidades')->findOrFail($id);
+        
+        // 1. Obtener los horarios activos del médico
+        $horarios = \App\Models\MedicoConsultorio::where('medico_id', $id)
+                    ->where('status', true)
+                    ->with('consultorio') // Eager load para uso en vista y obtención de IDs
+                    ->get();
+
+        // 2. Obtener IDs de consultorios que el médico YA tiene asignados en su horario
+        $consultoriosAsignadosIds = $horarios->pluck('consultorio_id')->unique()->toArray();
+
+        // Simplified: Load all consultorios with their especialidades
+        $consultorios = Consultorio::with('especialidades')->get();
+
+        if (auth()->user()->rol_id == 2) {
+            return view('medico.horarios', compact('medico', 'consultorios', 'horarios'));
+        }
+
+        return view('shared.medicos.horarios', compact('medico', 'consultorios', 'horarios'));
+    }
+
+    public function guardarHorario(Request $request, $id)
+    {
+        $medico = Medico::findOrFail($id);
+        $user = auth()->user();
+        $isAdminLocal = ($user->administrador && $user->administrador->tipo_admin !== 'Root');
+        $misConsultorios = $isAdminLocal ? $user->administrador->consultorios->pluck('id')->toArray() : [];
+
+        // Validar estructura básica
+        $validator = Validator::make($request->all(), [
+            'horarios' => 'array',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        \Log::info('V2 UI Payload:', $request->all());
+
+        $input = $request->input('horarios', []);
+        $daysOfWeek = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+        
+        $dbDays = [
+            'lunes' => 'Lunes',
+            'martes' => 'Martes',
+            'miercoles' => 'Miércoles',
+            'jueves' => 'Jueves',
+            'viernes' => 'Viernes',
+            'sabado' => 'Sábado',
+            'domingo' => 'Domingo'
+        ];
+
+        // 1. Validación de Especialidades vs Consultorio
+        // Recopilamos todos los IDs de consultorios involucrados para cargar sus especialidades permitidas
+        $consultorioIds = [];
+        foreach ($daysOfWeek as $dayKey) {
+            if (!isset($input[$dayKey])) continue;
+            $dayData = $input[$dayKey];
+
+            if (isset($dayData['manana_activa']) && $dayData['manana_activa'] == '1' && !empty($dayData['manana_consultorio_id'])) {
+                $cid = $dayData['manana_consultorio_id'];
+                if ($isAdminLocal && !in_array($cid, $misConsultorios)) {
+                    abort(403, 'No tiene permiso para asignar horarios en consultorios ajenos.');
+                }
+                $consultorioIds[] = $cid;
+            }
+            if (isset($dayData['tarde_activa']) && $dayData['tarde_activa'] == '1' && !empty($dayData['tarde_consultorio_id'])) {
+                $cid = $dayData['tarde_consultorio_id'];
+                if ($isAdminLocal && !in_array($cid, $misConsultorios)) {
+                    abort(403, 'No tiene permiso para asignar horarios en consultorios ajenos.');
+                }
+                $consultorioIds[] = $cid;
+            }
+        }
+
+        if (!empty($consultorioIds)) {
+            $consultorios = Consultorio::with('especialidades')->findMany(array_unique($consultorioIds))->keyBy('id');
+
+            foreach ($daysOfWeek as $dayKey) {
+                if (!isset($input[$dayKey])) continue;
+                $dayData = $input[$dayKey];
+                $diaNombre = $dbDays[$dayKey];
+
+                // Validar Turno Mañana - Especialidad
+                if (isset($dayData['manana_activa']) && $dayData['manana_activa'] == '1') {
+                    if (!empty($dayData['manana_consultorio_id']) && !empty($dayData['manana_especialidad_id'])) {
+                        $consId = $dayData['manana_consultorio_id'];
+                        $espId = $dayData['manana_especialidad_id'];
+                        
+                        if ($consultorios->has($consId)) {
+                            $consultorio = $consultorios->get($consId);
+                            if (!$consultorio->especialidades->contains('id', $espId)) {
+                                $especialidadNombre = \App\Models\Especialidad::find($espId)->nombre ?? 'seleccionada';
+                                return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): El consultorio '{$consultorio->nombre}' no admite la especialidad '{$especialidadNombre}'.");
+                            }
+                            
+                            // Validar horas contra horario del consultorio
+                            $horaInicio = $dayData['manana_inicio'] ?? null;
+                            $abreConsultorio = \Carbon\Carbon::parse($consultorio->horario_inicio)->format('H:i');
+                            
+                            if ($horaInicio && $horaInicio < $abreConsultorio) {
+                                return redirect()->back()->with('error', "Error en {$diaNombre} (Mañana): La hora de inicio ({$horaInicio}) no puede ser antes de que abra el consultorio ({$abreConsultorio}).");
+                            }
+                        }
+                    }
+                }
+
+                // Validar Turno Tarde - Especialidad
+                if (isset($dayData['tarde_activa']) && $dayData['tarde_activa'] == '1') {
+                    if (!empty($dayData['tarde_consultorio_id']) && !empty($dayData['tarde_especialidad_id'])) {
+                        $consId = $dayData['tarde_consultorio_id'];
+                        $espId = $dayData['tarde_especialidad_id'];
+                        
+                        if ($consultorios->has($consId)) {
+                            $consultorio = $consultorios->get($consId);
+                            if (!$consultorio->especialidades->contains('id', $espId)) {
+                                $especialidadNombre = \App\Models\Especialidad::find($espId)->nombre ?? 'seleccionada';
+                                return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): El consultorio '{$consultorio->nombre}' no admite la especialidad '{$especialidadNombre}'.");
+                            }
+                            
+                            // Validar horas contra horario del consultorio
+                            $horaFin = $dayData['tarde_fin'] ?? null;
+                            $cierraConsultorio = \Carbon\Carbon::parse($consultorio->horario_fin)->format('H:i');
+                            
+                            if ($horaFin && $horaFin > $cierraConsultorio) {
+                                return redirect()->back()->with('error', "Error en {$diaNombre} (Tarde): La hora de fin ({$horaFin}) no puede ser después de que cierre el consultorio ({$cierraConsultorio}).");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request, $id, $input, $daysOfWeek, $dbDays) {
+                // Recopilar los días activos del formulario para saber cuáles desactivar
+                $diasActivosFormulario = [];
+                
+                foreach ($daysOfWeek as $dayKey) {
+                    if (!isset($input[$dayKey]) || !isset($input[$dayKey]['activo'])) {
+                        continue; // Día no activo en el formulario
+                    }
+
+                    $dayData = $input[$dayKey];
+                    $diaSemanaDb = $dbDays[$dayKey];
+                    
+                    // Procesar Turno Mañana
+                    if (isset($dayData['manana_activa']) && $dayData['manana_activa'] == '1') {
+                        if (!empty($dayData['manana_inicio']) && !empty($dayData['manana_fin']) && !empty($dayData['manana_consultorio_id'])) {
+                            $diasActivosFormulario[] = ['dia' => $diaSemanaDb, 'turno' => 'mañana'];
+                            
+                            $nuevoConsultorioId = $dayData['manana_consultorio_id'];
+                            $nuevaEspecialidadId = $dayData['manana_especialidad_id'] ?? null;
+                            $nuevoInicio = $dayData['manana_inicio'];
+                            $nuevoFin = $dayData['manana_fin'];
+
+                            // Update existing or create new record (Upsert) to avoid Unique Constraint Violation
+                            \App\Models\MedicoConsultorio::updateOrCreate(
+                                [
+                                    'medico_id' => $id,
+                                    'dia_semana' => $diaSemanaDb,
+                                    'turno' => 'mañana'
+                                ],
+                                [
+                                    'consultorio_id' => $nuevoConsultorioId,
+                                    'especialidad_id' => $nuevaEspecialidadId,
+                                    'horario_inicio' => $nuevoInicio,
+                                    'horario_fin' => $nuevoFin,
+                                    'status' => true
+                                ]
+                            );
+                        }
+                    }
+
+                    // Procesar Turno Tarde
+                    if (isset($dayData['tarde_activa']) && $dayData['tarde_activa'] == '1') {
+                        if (!empty($dayData['tarde_inicio']) && !empty($dayData['tarde_fin']) && !empty($dayData['tarde_consultorio_id'])) {
+                            $diasActivosFormulario[] = ['dia' => $diaSemanaDb, 'turno' => 'tarde'];
+                            
+                            $nuevoConsultorioId = $dayData['tarde_consultorio_id'];
+                            $nuevaEspecialidadId = $dayData['tarde_especialidad_id'] ?? null;
+                            $nuevoInicio = $dayData['tarde_inicio'];
+                            $nuevoFin = $dayData['tarde_fin'];
+
+                            // Update existing or create new record (Upsert) to avoid Unique Constraint Violation
+                            \App\Models\MedicoConsultorio::updateOrCreate(
+                                [
+                                    'medico_id' => $id,
+                                    'dia_semana' => $diaSemanaDb,
+                                    'turno' => 'tarde'
+                                ],
+                                [
+                                    'consultorio_id' => $nuevoConsultorioId,
+                                    'especialidad_id' => $nuevaEspecialidadId,
+                                    'horario_inicio' => $nuevoInicio,
+                                    'horario_fin' => $nuevoFin,
+                                    'status' => true
+                                ]
+                            );
+                        }
+                    }
+                }
+                
+                // Desactivar solo los turnos que fueron explícitamente marcados como NO activos
+                // (cuando manana_activa=0 o tarde_activa=0 y antes estaba activo)
+                foreach ($daysOfWeek as $dayKey) {
+                    if (!isset($input[$dayKey])) continue;
+                    
+                    $dayData = $input[$dayKey];
+                    $diaSemanaDb = $dbDays[$dayKey];
+                    
+                    // Si el turno mañana está marcado como NO activo (0), desactivar
+                    if (isset($dayData['manana_activa']) && $dayData['manana_activa'] == '0') {
+                        \App\Models\MedicoConsultorio::where('medico_id', $id)
+                            ->where('dia_semana', $diaSemanaDb)
+                            ->where('turno', 'mañana')
+                            ->where('status', true)
+                            ->update(['status' => false]);
+                    }
+                    
+                    // Si el turno tarde está marcado como NO activo (0), desactivar
+                    if (isset($dayData['tarde_activa']) && $dayData['tarde_activa'] == '0') {
+                        \App\Models\MedicoConsultorio::where('medico_id', $id)
+                            ->where('dia_semana', $diaSemanaDb)
+                            ->where('turno', 'tarde')
+                            ->where('status', true)
+                            ->update(['status' => false]);
+                    }
+                }
+            });
+
+            // Notificar a todos los administradores relevantes
+            $admins = \App\Models\Administrador::where('status', true)->get();
+            $medico = Medico::findOrFail($id);
+            
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\Admin\MedicoHorarioActualizado($medico));
+            }
+
+            return redirect()->back()->with('success', 'Horarios actualizados correctamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error al guardar horarios: ' . $e->getMessage());
+        }
+    }
+
+    public function buscar(Request $request)
+    {
+        $query = Medico::with('especialidades')->where('status', true);
+
+        if ($request->has('especialidad_id') && $request->especialidad_id) {
+            $query->whereHas('especialidades', function($q) use ($request) {
+                $q->where('especialidades.id', $request->especialidad_id);
+            });
+        }
+
+        if ($request->has('consultorio_id') && $request->consultorio_id) {
+            $query->whereHas('consultorios', function($q) use ($request) {
+                $q->where('consultorios.id', $request->consultorio_id);
+            });
+        }
+
+        $medicos = $query->get();
+
+        return response()->json($medicos);
+    }
+
+    public function editPerfil()
+    {
+        $medico = auth()->user()->medico;
+        $estados = Estado::where('status', true)->get();
+        // Cargar listas dependientes basadas en la ubicación actual del médico
+        $ciudades = $medico->estado_id ? Ciudad::where('status', true)->where('id_estado', $medico->estado_id)->get() : [];
+        $municipios = $medico->estado_id ? Municipio::where('status', true)->where('id_estado', $medico->estado_id)->get() : [];
+        $parroquias = $medico->municipio_id ? Parroquia::where('status', true)->where('id_municipio', $medico->municipio_id)->get() : [];
+
+        return view('medico.perfil.editar', compact('medico', 'estados', 'ciudades', 'municipios', 'parroquias'));
+    }
+
+    public function updatePerfil(Request $request)
+    {
+        $medico = auth()->user()->medico;
+
+        $validator = Validator::make($request->all(), [
+            'primer_nombre' => ['required', 'max:100', 'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/'],
+            'primer_apellido' => ['required', 'max:100', 'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/'],
+            'fecha_nac' => 'nullable|date',
+            'prefijo_tlf' => 'nullable|in:+58,+57,+1,+34',
+            'numero_tlf' => 'nullable|max:15',
+            'password' => 'nullable|min:8|confirmed',
+            'foto_perfil' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'banner_perfil' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:4096',
+            'banner_color' => 'nullable|string|max:50',
+            'tema_dinamico' => 'nullable|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        // 1. Manejo de Foto de Perfil
+        if ($request->hasFile('foto_perfil')) {
+            if ($medico->foto_perfil && \Illuminate\Support\Facades\Storage::exists('public/' . $medico->foto_perfil)) {
+                \Illuminate\Support\Facades\Storage::delete('public/' . $medico->foto_perfil);
+            }
+            $file = $request->file('foto_perfil');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('perfiles_medicos', $filename, 'public');
+            $medico->foto_perfil = $path;
+        }
+
+        // 2. Manejo de Banner de Perfil
+         if ($request->has('remove_banner_image') && $request->remove_banner_image == '1') {
+             if ($medico->banner_perfil && \Illuminate\Support\Facades\Storage::exists('public/' . $medico->banner_perfil)) {
+                \Illuminate\Support\Facades\Storage::delete('public/' . $medico->banner_perfil);
+            }
+            $medico->banner_perfil = null;
+        } elseif ($request->hasFile('banner_perfil')) {
+            if ($medico->banner_perfil && \Illuminate\Support\Facades\Storage::exists('public/' . $medico->banner_perfil)) {
+                \Illuminate\Support\Facades\Storage::delete('public/' . $medico->banner_perfil);
+            }
+            $file = $request->file('banner_perfil');
+            $filename = 'banner_' . time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('banners_medicos', $filename, 'public');
+            $medico->banner_perfil = $path;
+        }
+
+        // 3. Actualizar Datos Personales
+        $medico->primer_nombre = $request->primer_nombre;
+        $medico->primer_apellido = $request->primer_apellido;
+        $medico->segundo_nombre = $request->segundo_nombre;
+        $medico->segundo_apellido = $request->segundo_apellido;
+        $medico->genero = $request->genero;
+        $medico->fecha_nac = $request->fecha_nac;
+        $medico->prefijo_tlf = $request->prefijo_tlf;
+        $medico->numero_tlf = $request->numero_tlf;
+        $medico->banner_color = $request->banner_color;
+        $medico->tema_dinamico = $request->has('tema_dinamico');
+
+        // Actualizar ubicación
+        if($request->filled('estado_id')) $medico->estado_id = $request->estado_id;
+        if($request->filled('ciudad_id')) $medico->ciudad_id = $request->ciudad_id;
+        if($request->filled('municipio_id')) $medico->municipio_id = $request->municipio_id;
+        if($request->filled('parroquia_id')) $medico->parroquia_id = $request->parroquia_id;
+        if($request->filled('direccion_detallada')) $medico->direccion_detallada = $request->direccion_detallada;
+
+        $medico->save();
+
+        // 4. Actualizar Password
+        if ($request->filled('password')) {
+            $medico->usuario->update([
+                'password' => $request->password
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Perfil médico actualizado correctamente');
+    }
+
+    /**
+     * Mostrar la agenda semanal del médico con grilla de tiempo
+     */
+    public function agenda(Request $request)
+    {
+        $user = auth()->user();
+        
+        if ($user->rol_id != 2 || !$user->medico) {
+            abort(403, 'Acceso no autorizado.');
+        }
+
+        $medico = $user->medico;
+        
+        // Obtener especialidades del médico
+        $especialidades = $medico->especialidades;
+        
+        // Obtener consultorios donde el médico trabaja
+        $consultorioIds = \App\Models\MedicoConsultorio::where('medico_id', $medico->id)
+                          ->where('status', true)
+                          ->pluck('consultorio_id')
+                          ->unique();
+        
+        $consultorios = Consultorio::whereIn('id', $consultorioIds)
+                        ->where('status', true)
+                        ->get();
+        
+        // Filtros
+        $filtroConsultorioId = $request->get('consultorio_id');
+        $filtroEspecialidadId = $request->get('especialidad_id');
+        
+        // Semana seleccionada (default: semana actual)
+        $semanaOffset = intval($request->get('semana', 0));
+        $inicioSemana = now()->startOfWeek()->addWeeks($semanaOffset);
+        $finSemana = $inicioSemana->copy()->endOfWeek();
+        
+        // Obtener horarios registrados del médico (filtrados si aplica)
+        $horariosQuery = \App\Models\MedicoConsultorio::with(['consultorio', 'especialidad'])
+                    ->where('medico_id', $medico->id)
+                    ->where('status', true);
+        
+        if ($filtroConsultorioId) {
+            $horariosQuery->where('consultorio_id', $filtroConsultorioId);
+        }
+        if ($filtroEspecialidadId) {
+            $horariosQuery->where('especialidad_id', $filtroEspecialidadId);
+        }
+        
+        $horarios = $horariosQuery->get()->groupBy('dia_semana');
+        
+        // Obtener fechas indisponibles de la semana
+        $fechasIndisponibles = \App\Models\FechaIndisponible::where('medico_id', $medico->id)
+                               ->where('status', true)
+                               ->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])
+                               ->get()
+                               ->keyBy('fecha');
+        
+        // Obtener también próximas 60 días para sidebar
+        $proximasFechasIndisponibles = \App\Models\FechaIndisponible::where('medico_id', $medico->id)
+                               ->where('status', true)
+                               ->where('fecha', '>=', now()->toDateString())
+                               ->where('fecha', '<=', now()->addDays(60)->toDateString())
+                               ->orderBy('fecha')
+                               ->get();
+        
+        // Obtener CITAS de la semana (filtradas si aplica)
+        $citasQuery = \App\Models\Cita::with(['paciente', 'pacienteEspecial', 'especialidad', 'consultorio'])
+                      ->where('medico_id', $medico->id)
+                      ->where('status', true)
+                      ->whereIn('estado_cita', ['Programada', 'Confirmada', 'En Progreso', 'Completada'])
+                      ->whereBetween('fecha_cita', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
+        
+        if ($filtroConsultorioId) {
+            $citasQuery->where('consultorio_id', $filtroConsultorioId);
+        }
+        if ($filtroEspecialidadId) {
+            $citasQuery->where('especialidad_id', $filtroEspecialidadId);
+        }
+        
+        $citas = $citasQuery->get();
+        
+        // Agrupar citas por fecha y hora
+        $citasPorFechaHora = [];
+        foreach ($citas as $cita) {
+            $fecha = $cita->fecha_cita;
+            $hora = \Carbon\Carbon::parse($cita->hora_inicio)->format('H:i');
+            $citasPorFechaHora[$fecha][$hora][] = $cita;
+        }
+        
+        // Calcular rango de horas del consultorio (mínimo inicio, máximo fin)
+        $consultorioActivo = $filtroConsultorioId 
+            ? $consultorios->firstWhere('id', $filtroConsultorioId)
+            : $consultorios->first();
+        
+        $horaInicioConsultorio = $consultorioActivo->horario_inicio ?? '07:00';
+        $horaFinConsultorio = $consultorioActivo->horario_fin ?? '20:00';
+        
+        // Generar estructura de días de la semana con fechas
+        $diasSemana = [];
+        $fechaIterador = $inicioSemana->copy();
+        $nombresEspanol = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        
+        for ($i = 0; $i < 7; $i++) {
+            $diasSemana[] = [
+                'nombre' => $nombresEspanol[$i],
+                'fecha' => $fechaIterador->format('Y-m-d'),
+                'fechaCorta' => $fechaIterador->format('d/m'),
+                'esHoy' => $fechaIterador->isToday()
+            ];
+            $fechaIterador->addDay();
+        }
+        
+        return view('medico.agenda', compact(
+            'medico',
+            'horarios',
+            'consultorios',
+            'especialidades',
+            'fechasIndisponibles',
+            'proximasFechasIndisponibles',
+            'citas',
+            'citasPorFechaHora',
+            'horaInicioConsultorio',
+            'horaFinConsultorio',
+            'diasSemana',
+            'inicioSemana',
+            'finSemana',
+            'semanaOffset',
+            'filtroConsultorioId',
+            'filtroEspecialidadId'
+        ));
+    }
+
+    /**
+     * Guardar una nueva fecha indisponible para el médico
+     */
+    public function storeFechaIndisponible(Request $request)
+    {
+        $user = auth()->user();
+        
+        if ($user->rol_id != 2 || !$user->medico) {
+            abort(403, 'Acceso no autorizado.');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'fecha' => 'required|date|after_or_equal:today',
+            'motivo' => 'required|string|max:255',
+            'duracion_preset' => 'nullable|in:todo_el_dia,manana,tarde,hasta_mediodia,personalizado',
+            'hora_inicio' => 'nullable|date_format:H:i',
+            'hora_fin' => 'nullable|date_format:H:i|after:hora_inicio',
+            'consultorio_id' => 'nullable|exists:consultorios,id'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        // Determinar horas según preset
+        $todoElDia = false;
+        $horaInicio = null;
+        $horaFin = null;
+
+        switch ($request->duracion_preset) {
+            case 'todo_el_dia':
+                $todoElDia = true;
+                break;
+            case 'manana':
+                $horaInicio = '06:00';
+                $horaFin = '12:00';
+                break;
+            case 'tarde':
+                $horaInicio = '12:00';
+                $horaFin = '22:00';
+                break;
+            case 'hasta_mediodia':
+                $horaInicio = '06:00';
+                $horaFin = '12:00';
+                break;
+            case 'personalizado':
+            default:
+                $horaInicio = $request->hora_inicio;
+                $horaFin = $request->hora_fin;
+                if (!$horaInicio || !$horaFin) {
+                    $todoElDia = true;
+                }
+                break;
+        }
+
+        // Verificar si ya existe una fecha indisponible para ese día
+        $existente = \App\Models\FechaIndisponible::where('medico_id', $user->medico->id)
+                     ->where('fecha', $request->fecha)
+                     ->where('status', true)
+                     ->first();
+
+        if ($existente) {
+            return redirect()->back()->with('error', 'Ya existe una fecha indisponible registrada para ese día. Elimínela primero si desea modificarla.');
+        }
+
+        \App\Models\FechaIndisponible::create([
+            'medico_id' => $user->medico->id,
+            'consultorio_id' => $request->consultorio_id,
+            'fecha' => $request->fecha,
+            'motivo' => $request->motivo,
+            'todo_el_dia' => $todoElDia,
+            'hora_inicio' => $horaInicio,
+            'hora_fin' => $horaFin,
+            'status' => true
+        ]);
+
+        return redirect()->route('medico.agenda')->with('success', 'Fecha no laborable registrada correctamente.');
+    }
+
+    /**
+     * Eliminar una fecha indisponible del médico
+     */
+    public function deleteFechaIndisponible($id)
+    {
+        $user = auth()->user();
+        
+        if ($user->rol_id != 2 || !$user->medico) {
+            abort(403, 'Acceso no autorizado.');
+        }
+
+        $fechaIndisponible = \App\Models\FechaIndisponible::where('id', $id)
+                             ->where('medico_id', $user->medico->id)
+                             ->firstOrFail();
+
+        $fechaIndisponible->update(['status' => false]);
+
+        return redirect()->route('medico.agenda')->with('success', 'Fecha no laborable eliminada correctamente.');
+    }
+}

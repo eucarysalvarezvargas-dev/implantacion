@@ -1,0 +1,1561 @@
+# 🚀 Guía Completa de Colaboración GitHub
+## Sistema de Reservas Médicas - 6 Desarrolladores / 3 Días
+
+---
+
+## 📋 Índice
+1. [Configuración Inicial](#configuración-inicial)
+2. [Equipo y Asignaciones](#equipo-y-asignaciones)
+3. [Plan de 3 Días](#plan-de-3-días)
+4. [Comandos Git Esenciales](#comandos-git-esenciales)
+5. [Resolución de Conflictos](#resolución-de-conflictos)
+
+---
+
+## 🔧 Configuración Inicial
+
+### Paso 1: Crear Repositorio en GitHub
+**Responsable: Simón (Líder de Proyecto)**
+
+1. Ir a GitHub y crear un nuevo repositorio:
+   - Nombre: `SisreservaMedicasOring`
+   - Descripción: "Sistema de Reservas Médicas con Laravel"
+   - Tipo: Privado (recomendado) o Público
+   - **NO** inicializar con README, .gitignore o licencia
+
+2. Invitar a todos los colaboradores:
+   - Settings → Collaborators → Add people
+   - Agregar: Genesis, Jorge, Jesus Torrealba, Eucarys, Jesus Chillix
+
+### Paso 2: Configuración Local (TODOS)
+```bash
+# Verificar configuración de Git
+git config --global user.name "Tu Nombre"
+git config --global user.email "tu-email@ejemplo.com"
+
+# Navegar al proyecto
+cd c:\laragon\www\SisreservaMedicasOring
+
+# Verificar estado del repositorio
+git status
+```
+
+---
+
+## 👥 Equipo y Asignaciones
+
+### 🎯 Distribución de Componentes
+
+| Desarrollador | Componente Asignado | Rama |
+|---------------|---------------------|------|
+| **Genesis** | Autenticación & Seguridad | `feature/genesis-auth` |
+| **Simón** | Módulos de Administración | `feature/simon-admin` |
+| **Jorge** | Módulos de Médicos | `feature/jorge-medicos` |
+| **Jesus Torrealba** | Módulos de Pacientes | `feature/torrealba-pacientes` |
+| **Eucarys** | Base de Datos & Seeders | `feature/eucarys-database` |
+| **Jesus Chillix** | Frontend & Recursos | `feature/chillix-frontend` |
+
+---
+
+## 📅 Plan de 3 Días
+
+# DÍA 1: ESTRUCTURA BASE Y CONFIGURACIÓN
+
+## 🔵 GENESIS - Autenticación & Seguridad
+**Rama:** `feature/genesis-auth`
+
+### Archivos a subir:
+
+#### Controllers de Autenticación
+```
+app/Http/Controllers/Auth/
+├── ForgotPasswordController.php
+├── LoginController.php
+├── RegisterController.php
+└── ResetPasswordController.php
+```
+
+#### Middleware
+```
+app/Http/Middleware/
+├── Authenticate.php
+├── CheckRole.php
+├── EncryptCookies.php
+├── PreventRequestsDuringMaintenance.php
+├── RedirectIfAuthenticated.php
+├── TrimStrings.php
+├── TrustHosts.php
+├── TrustProxies.php
+└── VerifyCsrfToken.php
+```
+
+#### Modelos de Seguridad
+```
+app/Models/
+├── Usuario.php
+├── Role.php
+├── RespuestaSeguridad.php
+├── PreguntaCatalogo.php
+└── HistorialPassword.php
+```
+
+#### Vistas de Autenticación
+```
+resources/views/auth/
+├── login.blade.php
+├── register.blade.php
+├── passwords/
+│   ├── email.blade.php
+│   └── reset.blade.php
+└── security-questions.blade.php
+```
+
+### Comandos del Día 1:
+```bash
+# 1. Crear y cambiar a tu rama
+git checkout -b feature/genesis-auth
+
+# 2. Agregar archivos
+git add app/Http/Controllers/Auth/
+git add app/Http/Middleware/
+git add app/Models/Usuario.php
+git add app/Models/Role.php
+git add app/Models/RespuestaSeguridad.php
+git add app/Models/PreguntaCatalogo.php
+git add app/Models/HistorialPassword.php
+git add resources/views/auth/
+
+# 3. Commit
+git commit -m "feat: Agregar sistema de autenticación y seguridad completo"
+
+# 4. Subir rama
+git push -u origin feature/genesis-auth
+```
+
+---
+
+## 🟢 SIMÓN - Módulos de Administración
+**Rama:** `feature/simon-admin`
+
+### Archivos a subir:
+
+#### Controllers de Admin
+```
+app/Http/Controllers/
+├── AdministradorController.php
+├── ConsultorioController.php
+├── ConfiguracionController.php
+├── TasaDolarController.php
+└── NotificacionController.php
+```
+
+#### Modelos de Admin
+```
+app/Models/
+├── Administrador.php
+├── Consultorio.php
+├── Configuracion.php
+├── ConfiguracionReparto.php
+├── TasaDolar.php
+└── Notificacion.php
+```
+
+#### Vistas de Admin
+```
+resources/views/admin/
+├── dashboard.blade.php
+├── perfil/
+│   └── editar.blade.php
+└── configuraciones/
+    ├── index.blade.php
+    └── editar.blade.php
+```
+
+#### Vistas Compartidas - Consultorios
+```
+resources/views/shared/consultorios/
+├── index.blade.php
+├── create.blade.php
+├── edit.blade.php
+└── show.blade.php
+```
+
+### Comandos del Día 1:
+```bash
+# 1. Crear rama
+git checkout -b feature/simon-admin
+
+# 2. Agregar archivos
+git add app/Http/Controllers/AdministradorController.php
+git add app/Http/Controllers/ConsultorioController.php
+git add app/Http/Controllers/ConfiguracionController.php
+git add app/Http/Controllers/TasaDolarController.php
+git add app/Http/Controllers/NotificacionController.php
+git add app/Models/Administrador.php
+git add app/Models/Consultorio.php
+git add app/Models/Configuracion.php
+git add app/Models/ConfiguracionReparto.php
+git add app/Models/TasaDolar.php
+git add app/Models/Notificacion.php
+git add resources/views/admin/
+git add resources/views/shared/consultorios/
+
+# 3. Commit
+git commit -m "feat: Agregar módulos de administración y consultorios"
+
+# 4. Subir
+git push -u origin feature/simon-admin
+```
+
+---
+
+## 🟡 JORGE - Módulos de Médicos
+**Rama:** `feature/jorge-medicos`
+
+### Archivos a subir:
+
+#### Controllers de Médicos
+```
+app/Http/Controllers/
+├── MedicoController.php
+├── MedicoNotificacionController.php
+├── EspecialidadController.php
+└── FechaIndisponibleController.php
+```
+
+#### Modelos de Médicos
+```
+app/Models/
+├── Medico.php
+├── Especialidad.php
+├── MedicoConsultorio.php
+└── FechaIndisponible.php
+```
+
+#### Vistas de Médicos
+```
+resources/views/medico/
+├── dashboard.blade.php
+├── perfil/
+│   └── editar.blade.php
+├── horarios.blade.php
+├── calendario.blade.php
+└── notificaciones/
+    └── index.blade.php
+```
+
+#### Vistas Compartidas - Especialidades
+```
+resources/views/shared/especialidades/
+├── index.blade.php
+├── create.blade.php
+└── edit.blade.php
+```
+
+### Comandos del Día 1:
+```bash
+# 1. Crear rama
+git checkout -b feature/jorge-medicos
+
+# 2. Agregar archivos
+git add app/Http/Controllers/MedicoController.php
+git add app/Http/Controllers/MedicoNotificacionController.php
+git add app/Http/Controllers/EspecialidadController.php
+git add app/Http/Controllers/FechaIndisponibleController.php
+git add app/Models/Medico.php
+git add app/Models/Especialidad.php
+git add app/Models/MedicoConsultorio.php
+git add app/Models/FechaIndisponible.php
+git add resources/views/medico/
+git add resources/views/shared/especialidades/
+
+# 3. Commit
+git commit -m "feat: Agregar módulos de médicos y especialidades"
+
+# 4. Subir
+git push -u origin feature/jorge-medicos
+```
+
+---
+
+## 🟣 JESUS TORREALBA - Módulos de Pacientes
+**Rama:** `feature/torrealba-pacientes`
+
+### Archivos a subir:
+
+#### Controllers de Pacientes
+```
+app/Http/Controllers/
+├── PacienteController.php
+├── PacienteNotificacionController.php
+├── RepresentanteController.php
+└── SolicitudHistorialController.php
+```
+
+#### Modelos de Pacientes
+```
+app/Models/
+├── Paciente.php
+├── PacienteEspecial.php
+├── Representante.php
+└── SolicitudHistorial.php
+```
+
+#### Vistas de Pacientes
+```
+resources/views/paciente/
+├── dashboard.blade.php
+├── perfil/
+│   └── editar.blade.php
+├── mis-citas.blade.php
+├── historias-clinicas.blade.php
+└── notificaciones/
+    └── index.blade.php
+```
+
+#### Vistas de Representantes
+```
+resources/views/representante/
+└── dashboard.blade.php
+```
+
+### Comandos del Día 1:
+```bash
+# 1. Crear rama
+git checkout -b feature/torrealba-pacientes
+
+# 2. Agregar archivos
+git add app/Http/Controllers/PacienteController.php
+git add app/Http/Controllers/PacienteNotificacionController.php
+git add app/Http/Controllers/RepresentanteController.php
+git add app/Http/Controllers/SolicitudHistorialController.php
+git add app/Models/Paciente.php
+git add app/Models/PacienteEspecial.php
+git add app/Models/Representante.php
+git add app/Models/SolicitudHistorial.php
+git add resources/views/paciente/
+git add resources/views/representante/
+
+# 3. Commit
+git commit -m "feat: Agregar módulos de pacientes y representantes"
+
+# 4. Subir
+git push origin feature/torrealba-pacientes
+```
+
+---
+
+## 🔴 EUCARYS - Base de Datos & Seeders
+**Rama:** `feature/eucarys-database`
+
+### Archivos a subir:
+
+#### Migraciones (Todas)
+```
+database/migrations/
+├── 2024_01_01_create_usuarios_table.php
+├── 2024_01_02_create_roles_table.php
+├── 2024_01_03_create_administradores_table.php
+├── 2024_01_04_create_medicos_table.php
+├── 2024_01_05_create_pacientes_table.php
+├── 2024_01_06_create_especialidades_table.php
+├── 2024_01_07_create_consultorios_table.php
+├── 2024_01_08_create_citas_table.php
+├── 2024_01_09_create_pagos_table.php
+├── 2024_01_10_create_historias_clinicas_base_table.php
+└── ... (todas las demás migraciones)
+```
+
+#### Seeders Principales
+```
+database/seeders/
+├── DatabaseSeeder.php
+├── CleanSystemSeeder.php
+├── RoleSeeder.php
+├── EstadoSeeder.php
+├── CiudadSeeder.php
+├── MunicipioSeeder.php
+├── ParroquiaSeeder.php
+└── PreguntaCatalogoSeeder.php
+```
+
+#### Factories
+```
+database/factories/
+└── UserFactory.php
+```
+
+### Comandos del Día 1:
+```bash
+# 1. Crear rama
+git checkout -b feature/eucarys-database
+
+# 2. Agregar archivos
+git add database/migrations/
+git add database/seeders/
+git add database/factories/
+
+# 3. Commit
+git commit -m "feat: Agregar migraciones y seeders completos de base de datos"
+
+# 4. Subir
+git push -u origin feature/eucarys-database
+```
+
+---
+
+## 🟠 JESUS CHILLIX - Frontend & Recursos
+**Rama:** `feature/chillix-frontend`
+
+### Archivos a subir:
+
+#### Layouts
+```
+resources/views/layouts/
+├── app.blade.php
+├── admin.blade.php
+├── medico.blade.php
+├── paciente.blade.php
+├── guest.blade.php
+└── navigation.blade.php
+```
+
+#### Vista Principal
+```
+resources/views/
+└── welcome.blade.php
+```
+
+#### Estilos y Scripts
+```
+resources/css/
+└── app.css
+
+resources/js/
+├── app.js
+├── bootstrap.js
+├── echo.js
+└── notifications.js
+```
+
+#### Assets Públicos
+```
+public/
+├── css/
+│   └── app.css
+├── js/
+│   ├── app.js
+│   └── notifications.js
+├── build/
+│   └── assets/
+├── favicon.ico
+└── .htaccess
+```
+
+#### Configuraciones de Frontend
+```
+/
+├── package.json
+├── package-lock.json
+├── vite.config.js
+├── tailwind.config.js
+└── postcss.config.js
+```
+
+### Comandos del Día 1:
+```bash
+# 1. Crear rama
+git checkout -b feature/chillix-frontend
+
+# 2. Agregar archivos
+git add resources/views/layouts/
+git add resources/views/welcome.blade.php
+git add resources/css/
+git add resources/js/
+git add public/css/
+git add public/js/
+git add public/.htaccess
+git add public/favicon.ico
+git add package.json
+git add package-lock.json
+git add vite.config.js
+git add tailwind.config.js
+git add postcss.config.js
+
+# 3. Commit
+git commit -m "feat: Agregar layouts, estilos y configuración de frontend"
+
+# 4. Subir
+git push -u origin feature/chillix-frontend
+```
+
+---
+
+# DÍA 2: MÓDULOS PRINCIPALES Y FUNCIONALIDADES
+
+## 🔵 GENESIS - Notificaciones & Emails
+**Rama:** `feature/genesis-auth` (continuar)
+
+### Archivos a subir:
+
+#### Notificaciones
+```
+app/Notifications/
+├── CitaCancelada.php
+├── CitaReprogramada.php
+├── PagoConfirmado.php
+├── PagoRechazado.php
+├── HistoriaClinicaActualizada.php
+├── NuevaCitaAsignada.php
+├── RecordatorioEvolucion.php
+└── SolicitudHistorialRecibida.php
+```
+
+#### Emails
+```
+app/Mail/
+├── PasswordResetMail.php
+├── WelcomeMail.php
+├── CitaConfirmacion.php
+└── PagoConfirmado.php
+
+resources/views/emails/
+├── password-reset.blade.php
+├── welcome.blade.php
+├── cita-confirmacion.blade.php
+└── pago-confirmado.blade.php
+```
+
+#### Providers
+```
+app/Providers/
+├── AppServiceProvider.php
+├── AuthServiceProvider.php
+├── BroadcastServiceProvider.php
+├── EventServiceProvider.php
+└── RouteServiceProvider.php
+```
+
+### Comandos del Día 2:
+```bash
+# 1. Cambiar a tu rama
+git checkout feature/genesis-auth
+
+# 2. Sincronizar con main
+git pull origin main
+
+# 3. Agregar archivos nuevos
+git add app/Notifications/
+git add app/Mail/
+git add resources/views/emails/
+git add app/Providers/
+
+# 4. Commit
+git commit -m "feat: Agregar sistema de notificaciones y emails"
+
+# 5. Subir
+git push origin feature/genesis-auth
+```
+
+---
+
+## 🟢 SIMÓN - Citas y Pagos (Admin)
+**Rama:** `feature/simon-admin` (continuar)
+
+### Archivos a subir:
+
+#### Controllers
+```
+app/Http/Controllers/
+├── CitaController.php
+├── PagoController.php
+└── UbicacionController.php
+```
+
+#### Modelos
+```
+app/Models/
+├── Cita.php
+├── Pago.php
+├── MetodoPago.php
+├── Estado.php
+├── Ciudad.php
+├── Municipio.php
+└── Parroquia.php
+```
+
+#### Vistas Compartidas - Citas
+```
+resources/views/shared/citas/
+├── index.blade.php
+├── create.blade.php
+├── edit.blade.php
+└── show.blade.php
+```
+
+#### Vistas Compartidas - Pagos
+```
+resources/views/shared/pagos/
+├── index.blade.php
+├── create.blade.php
+└── show.blade.php
+```
+
+### Comandos del Día 2:
+```bash
+# 1. Cambiar a tu rama
+git checkout feature/simon-admin
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add app/Http/Controllers/CitaController.php
+git add app/Http/Controllers/PagoController.php
+git add app/Http/Controllers/UbicacionController.php
+git add app/Models/Cita.php
+git add app/Models/Pago.php
+git add app/Models/MetodoPago.php
+git add app/Models/Estado.php
+git add app/Models/Ciudad.php
+git add app/Models/Municipio.php
+git add app/Models/Parroquia.php
+git add resources/views/shared/citas/
+git add resources/views/shared/pagos/
+
+# 4. Commit
+git commit -m "feat: Agregar módulos de citas y pagos"
+
+# 5. Subir
+git push origin feature/simon-admin
+```
+
+---
+
+## 🟡 JORGE - Historias Clínicas
+**Rama:** `feature/jorge-medicos` (continuar)
+
+### Archivos a subir:
+
+#### Controllers
+```
+app/Http/Controllers/
+├── HistoriaClinicaController.php
+├── EvolucionClinicaController.php
+├── OrdenMedicaController.php
+└── SolicitudOrdenController.php
+```
+
+#### Modelos
+```
+app/Models/
+├── HistoriaClinicaBase.php
+├── EvolucionClinica.php
+├── OrdenMedica.php
+├── OrdenExamen.php
+├── OrdenImagen.php
+├── OrdenMedicamento.php
+├── OrdenReferencia.php
+├── SolicitudOrden.php
+└── AuditoriaHistoriaBase.php
+```
+
+#### Vistas - Historias Clínicas
+```
+resources/views/shared/historias-clinicas/
+├── index.blade.php
+├── create.blade.php
+├── show.blade.php
+└── pdf.blade.php
+```
+
+#### Vistas - Evoluciones
+```
+resources/views/medico/evoluciones/
+├── create.blade.php
+└── show.blade.php
+```
+
+### Comandos del Día 2:
+```bash
+# 1. Cambiar a rama
+git checkout feature/jorge-medicos
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add app/Http/Controllers/HistoriaClinicaController.php
+git add app/Http/Controllers/EvolucionClinicaController.php
+git add app/Http/Controllers/OrdenMedicaController.php
+git add app/Http/Controllers/SolicitudOrdenController.php
+git add app/Models/HistoriaClinicaBase.php
+git add app/Models/EvolucionClinica.php
+git add app/Models/OrdenMedica.php
+git add app/Models/OrdenExamen.php
+git add app/Models/OrdenImagen.php
+git add app/Models/OrdenMedicamento.php
+git add app/Models/OrdenReferencia.php
+git add app/Models/SolicitudOrden.php
+git add app/Models/AuditoriaHistoriaBase.php
+git add resources/views/shared/historias-clinicas/
+git add resources/views/medico/evoluciones/
+
+# 4. Commit
+git commit -m "feat: Agregar módulos de historias clínicas y evoluciones"
+
+# 5. Subir
+git push origin feature/jorge-medicos
+```
+
+---
+
+## 🟣 JESUS TORREALBA - Facturación
+**Rama:** `feature/torrealba-pacientes` (continuar)
+
+### Archivos a subir:
+
+#### Controllers
+```
+app/Http/Controllers/
+├── FacturaController.php
+└── LiquidacionController.php
+```
+
+#### Modelos
+```
+app/Models/
+├── FacturaCabecera.php
+├── FacturaDetalle.php
+├── FacturaPaciente.php
+├── FacturaTotal.php
+├── Liquidacion.php
+└── LiquidacionDetalle.php
+```
+
+#### Vistas - Facturas
+```
+resources/views/shared/facturas/
+├── index.blade.php
+├── show.blade.php
+└── pdf.blade.php
+```
+
+#### Vistas - Liquidaciones
+```
+resources/views/shared/liquidaciones/
+├── index.blade.php
+├── create.blade.php
+└── show.blade.php
+```
+
+### Comandos del Día 2:
+```bash
+# 1. Cambiar a rama
+git checkout feature/torrealba-pacientes
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add app/Http/Controllers/FacturaController.php
+git add app/Http/Controllers/LiquidacionController.php
+git add app/Models/FacturaCabecera.php
+git add app/Models/FacturaDetalle.php
+git add app/Models/FacturaPaciente.php
+git add app/Models/FacturaTotal.php
+git add app/Models/Liquidacion.php
+git add app/Models/LiquidacionDetalle.php
+git add resources/views/shared/facturas/
+git add resources/views/shared/liquidaciones/
+
+# 4. Commit
+git commit -m "feat: Agregar módulos de facturación y liquidaciones"
+
+# 5. Subir
+git push origin feature/torrealba-pacientes
+```
+
+---
+
+## 🔴 EUCARYS - Seeders Adicionales
+**Rama:** `feature/eucarys-database` (continuar)
+
+### Archivos a subir:
+
+#### Seeders de Datos
+```
+database/seeders/
+├── AdministradorSeeder.php
+├── MedicoSeeder.php
+├── PacienteSeeder.php
+├── EspecialidadSeeder.php
+├── ConsultorioSeeder.php
+├── MedicoConsultorioSeeder.php
+├── MetodoPagoSeeder.php
+├── ConfiguracionSeeder.php
+└── TasaDolarSeeder.php
+```
+
+#### Helpers
+```
+app/Helpers/
+└── LocationHelper.php
+```
+
+#### Instrucciones
+```
+/
+└── SEEDERS_INSTRUCCIONES.md
+```
+
+### Comandos del Día 2:
+```bash
+# 1. Cambiar a rama
+git checkout feature/eucarys-database
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add database/seeders/AdministradorSeeder.php
+git add database/seeders/MedicoSeeder.php
+git add database/seeders/PacienteSeeder.php
+git add database/seeders/EspecialidadSeeder.php
+git add database/seeders/ConsultorioSeeder.php
+git add database/seeders/MedicoConsultorioSeeder.php
+git add database/seeders/MetodoPagoSeeder.php
+git add database/seeders/ConfiguracionSeeder.php
+git add database/seeders/TasaDolarSeeder.php
+git add app/Helpers/
+git add SEEDERS_INSTRUCCIONES.md
+
+# 4. Commit
+git commit -m "feat: Agregar seeders de datos y helpers"
+
+# 5. Subir
+git push origin feature/eucarys-database
+```
+
+---
+
+## 🟠 JESUS CHILLIX - Vistas Compartidas
+**Rama:** `feature/chillix-frontend` (continuar)
+
+### Archivos a subir:
+
+#### Vistas de Error
+```
+resources/views/errors/
+├── 403.blade.php
+├── 404.blade.php
+└── 500.blade.php
+```
+
+#### Componentes Vendor
+```
+resources/views/vendor/
+├── notifications/
+│   └── email.blade.php
+└── pagination/
+    └── tailwind.blade.php
+```
+
+#### Vistas Adicionales de Médicos
+```
+resources/views/medico/
+├── citas/
+│   ├── index.blade.php
+│   └── show.blade.php
+├── pacientes/
+│   ├── index.blade.php
+│   └── show.blade.php
+└── historias-clinicas/
+    ├── index.blade.php
+    └── show.blade.php
+```
+
+#### Vistas Adicionales de Admin
+```
+resources/views/admin/
+├── usuarios/
+│   ├── index.blade.php
+│   ├── create.blade.php
+│   └── edit.blade.php
+└── reportes/
+    ├── index.blade.php
+    └── exportar.blade.php
+```
+
+### Comandos del Día 2:
+```bash
+# 1. Cambiar a rama
+git checkout feature/chillix-frontend
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add resources/views/errors/
+git add resources/views/vendor/
+git add resources/views/medico/citas/
+git add resources/views/medico/pacientes/
+git add resources/views/medico/historias-clinicas/
+git add resources/views/admin/usuarios/
+git add resources/views/admin/reportes/
+
+# 4. Commit
+git commit -m "feat: Agregar vistas de errores y componentes compartidos"
+
+# 5. Subir
+git push origin feature/chillix-frontend
+```
+
+---
+
+# DÍA 3: INTEGRACIÓN Y CONFIGURACIÓN FINAL
+
+## 🔵 GENESIS - Rutas y Channels
+**Rama:** `feature/genesis-auth` (continuar)
+
+### Archivos a subir:
+
+#### Rutas
+```
+routes/
+├── web.php
+├── api.php
+├── channels.php
+└── console.php
+```
+
+#### Jobs
+```
+app/Jobs/
+├── SendEmailJob.php
+├── ProcessNotification.php
+└── GenerateInvoice.php
+```
+
+#### Services
+```
+app/Services/
+└── NotificationService.php
+```
+
+#### Traits
+```
+app/Traits/
+└── HasNotifications.php
+```
+
+### Comandos del Día 3:
+```bash
+# 1. Cambiar a rama
+git checkout feature/genesis-auth
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add routes/
+git add app/Jobs/
+git add app/Services/
+git add app/Traits/
+
+# 4. Commit
+git commit -m "feat: Agregar rutas, jobs y servicios"
+
+# 5. Subir
+git push origin feature/genesis-auth
+
+# 6. Crear Pull Request en GitHub
+```
+
+---
+
+## 🟢 SIMÓN - Configuraciones y Bootstrap
+**Rama:** `feature/simon-admin` (continuar)
+
+### Archivos a subir:
+
+#### Configuraciones
+```
+config/
+├── app.php
+├── auth.php
+├── broadcasting.php
+├── cache.php
+├── cors.php
+├── database.php
+├── filesystems.php
+├── logging.php
+├── mail.php
+├── queue.php
+├── services.php
+└── session.php
+```
+
+#### Bootstrap
+```
+bootstrap/
+├── app.php
+└── cache/
+    └── .gitignore
+```
+
+#### Kernel
+```
+app/Http/
+└── Kernel.php
+```
+
+#### Console
+```
+app/Console/
+├── Kernel.php
+└── Commands/
+    ├── GenerateMonthlyReports.php
+    └── CleanOldNotifications.php
+```
+
+### Comandos del Día 3:
+```bash
+# 1. Cambiar a rama
+git checkout feature/simon-admin
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add config/
+git add bootstrap/
+git add app/Http/Kernel.php
+git add app/Console/
+
+# 4. Commit
+git commit -m "feat: Agregar configuraciones de Laravel y bootstrap"
+
+# 5. Subir
+git push origin feature/simon-admin
+
+# 6. Crear Pull Request en GitHub
+```
+
+---
+
+## 🟡 JORGE - Excepciones y Handlers
+**Rama:** `feature/jorge-medicos` (continuar)
+
+### Archivos a subir:
+
+#### Exceptions
+```
+app/Exceptions/
+└── Handler.php
+```
+
+#### Vistas Restantes de Médicos
+```
+resources/views/medico/
+├── ordenes/
+│   ├── index.blade.php
+│   ├── create.blade.php
+│   └── show.blade.php
+└── solicitudes/
+    ├── index.blade.php
+    └── show.blade.php
+```
+
+#### Vistas Compartidas - Médicos
+```
+resources/views/shared/medicos/
+├── index.blade.php
+├── create.blade.php
+├── edit.blade.php
+└── show.blade.php
+```
+
+### Comandos del Día 3:
+```bash
+# 1. Cambiar a rama
+git checkout feature/jorge-medicos
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add app/Exceptions/
+git add resources/views/medico/ordenes/
+git add resources/views/medico/solicitudes/
+git add resources/views/shared/medicos/
+
+# 4. Commit
+git commit -m "feat: Agregar excepciones y vistas restantes de médicos"
+
+# 5. Subir
+git push origin feature/jorge-medicos
+
+# 6. Crear Pull Request en GitHub
+```
+
+---
+
+## 🟣 JESUS TORREALBA - Vistas Restantes Pacientes
+**Rama:** `feature/torrealba-pacientes` (continuar)
+
+### Archivos a subir:
+
+#### Vistas Compartidas - Pacientes
+```
+resources/views/shared/pacientes/
+├── index.blade.php
+├── create.blade.php
+├── edit.blade.php
+└── show.blade.php
+```
+
+#### Vistas Compartidas - Representantes
+```
+resources/views/shared/representantes/
+├── index.blade.php
+├── create.blade.php
+└── edit.blade.php
+```
+
+#### Vistas de Citas Paciente
+```
+resources/views/paciente/citas/
+├── crear.blade.php
+└── detalle.blade.php
+```
+
+#### Vistas de Pagos Paciente
+```
+resources/views/paciente/pagos/
+├── index.blade.php
+└── crear.blade.php
+```
+
+### Comandos del Día 3:
+```bash
+# 1. Cambiar a rama
+git checkout feature/torrealba-pacientes
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add resources/views/shared/pacientes/
+git add resources/views/shared/representantes/
+git add resources/views/paciente/citas/
+git add resources/views/paciente/pagos/
+
+# 4. Commit
+git commit -m "feat: Agregar vistas restantes de pacientes y representantes"
+
+# 5. Subir
+git push origin feature/torrealba-pacientes
+
+# 6. Crear Pull Request en GitHub
+```
+
+---
+
+## 🔴 EUCARYS - Storage y Tests
+**Rama:** `feature/eucarys-database` (continuar)
+
+### Archivos a subir:
+
+#### Storage
+```
+storage/
+├── app/
+│   ├── public/
+│   │   └── .gitignore
+│   └── .gitignore
+├── framework/
+│   ├── cache/
+│   │   └── .gitignore
+│   ├── sessions/
+│   │   └── .gitignore
+│   ├── testing/
+│   │   └── .gitignore
+│   └── views/
+│       └── .gitignore
+└── logs/
+    └── .gitignore
+```
+
+#### Tests
+```
+tests/
+├── TestCase.php
+├── Feature/
+│   ├── AuthTest.php
+│   └── CitaTest.php
+└── Unit/
+    ├── UserTest.php
+    └── PacienteTest.php
+```
+
+#### PHPUnit
+```
+/
+└── phpunit.xml
+```
+
+### Comandos del Día 3:
+```bash
+# 1. Cambiar a rama
+git checkout feature/eucarys-database
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add storage/
+git add tests/
+git add phpunit.xml
+
+# 4. Commit
+git commit -m "feat: Agregar estructura de storage y tests"
+
+# 5. Subir
+git push origin feature/eucarys-database
+
+# 6. Crear Pull Request en GitHub
+```
+
+---
+
+## 🟠 JESUS CHILLIX - Archivos Raíz y Documentación
+**Rama:** `feature/chillix-frontend` (continuar)
+
+### Archivos a subir:
+
+#### Archivos de Configuración Raíz
+```
+/
+├── .editorconfig
+├── .gitattributes
+├── .gitignore
+├── composer.json
+├── composer.lock
+├── README.md
+└── artisan
+```
+
+#### Documentación
+```
+/
+├── SEEDERS_INSTRUCCIONES.md
+└── Lista de vistas creada
+```
+
+#### Public Index
+```
+public/
+├── index.php
+└── robots.txt
+```
+
+### Comandos del Día 3:
+```bash
+# 1. Cambiar a rama
+git checkout feature/chillix-frontend
+
+# 2. Sincronizar
+git pull origin main
+
+# 3. Agregar archivos
+git add .editorconfig
+git add .gitattributes
+git add .gitignore
+git add composer.json
+git add composer.lock
+git add README.md
+git add artisan
+git add SEEDERS_INSTRUCCIONES.md
+git add "Lista de vistas creada"
+git add public/index.php
+git add public/robots.txt
+
+# 4. Commit
+git commit -m "feat: Agregar archivos de configuración y documentación"
+
+# 5. Subir
+git push origin feature/chillix-frontend
+
+# 6. Crear Pull Request en GitHub
+```
+
+---
+
+## 📝 TODOS (Día 3 - Tarde): Merge a Main
+
+### Proceso de Integración (Responsable: Simón)
+
+1. **Revisar todos los Pull Requests**
+   - Verificar que cada PR tenga descripción clara
+   - Revisar conflictos potenciales
+
+2. **Merge en orden**
+   ```bash
+   # En GitHub, hacer merge de los PRs en este orden:
+   # 1. feature/eucarys-database (base de datos primero)
+   # 2. feature/genesis-auth (autenticación)
+   # 3. feature/simon-admin (administración)
+   # 4. feature/jorge-medicos (médicos)
+   # 5. feature/torrealba-pacientes (pacientes)
+   # 6. feature/chillix-frontend (frontend último)
+   ```
+
+3. **Actualizar repositorio local**
+   ```bash
+   # TODOS ejecutan:
+   git checkout main
+   git pull origin main
+   ```
+
+4. **Verificar instalación**
+   ```bash
+   # TODOS ejecutan:
+   composer install
+   npm install
+   npm run build
+   cp .env.example .env
+   php artisan key:generate
+   php artisan migrate
+   php artisan db:seed --class=CleanSystemSeeder
+   ```
+
+---
+
+## 🔧 Comandos Git Esenciales
+
+### Configuración Inicial
+```bash
+# Ver estado actual
+git status
+
+# Ver ramas locales
+git branch
+
+# Ver ramas remotas
+git branch -r
+
+# Ver todas las ramas
+git branch -a
+```
+
+### Trabajo Diario
+```bash
+# Crear y cambiar a nueva rama
+git checkout -b nombre-rama
+
+# Cambiar a rama existente
+git checkout nombre-rama
+
+# Ver cambios pendientes
+git diff
+
+# Agregar archivos específicos
+git add ruta/archivo.php
+
+# Agregar carpeta completa
+git add carpeta/
+
+# Agregar todos los cambios
+git add .
+
+# Commit con mensaje
+git commit -m "tipo: descripción breve"
+
+# Subir cambios
+git push origin nombre-rama
+
+# Actualizar rama con main
+git pull origin main
+```
+
+### Tipos de Commit
+```
+feat: Nueva funcionalidad
+fix: Corrección de bug
+docs: Documentación
+style: Formato de código
+refactor: Refactorización
+test: Tests
+chore: Tareas de mantenimiento
+```
+
+---
+
+## ⚠️ Resolución de Conflictos
+
+### Si hay conflictos al hacer pull
+```bash
+# 1. Ver qué archivos tienen conflictos
+git status
+
+# 2. Abrir archivos con conflictos y buscar:
+<<<<<<< HEAD
+Tu código
+=======
+Código de otro desarrollador
+>>>>>>> rama-origen
+
+# 3. Resolver manualmente (elegir qué código mantener)
+
+# 4. Marcar como resuelto
+git add archivo-resuelto.php
+
+# 5. Completar el merge
+git commit -m "fix: Resolver conflictos de merge"
+
+# 6. Subir cambios
+git push origin tu-rama
+```
+
+### Si hiciste cambios en la rama equivocada
+```bash
+# 1. Guardar cambios temporalmente
+git stash
+
+# 2. Cambiar a la rama correcta
+git checkout rama-correcta
+
+# 3. Aplicar los cambios guardados
+git stash pop
+```
+
+---
+
+## 📊 Checklist de Verificación
+
+### Día 1
+- [ ] Todos crearon su rama feature
+- [ ] Todos subieron su primer commit
+- [ ] Todos los archivos base están en GitHub
+
+### Día 2
+- [ ] Módulos principales subidos
+- [ ] Notificaciones y emails agregados
+- [ ] Historias clínicas completas
+
+### Día 3
+- [ ] Todas las configuraciones subidas
+- [ ] Tests y documentación agregados
+- [ ] 6 Pull Requests creados
+- [ ] Pull Requests revisados
+- [ ] Merge a main completado
+- [ ] Proyecto funcionando localmente para todos
+
+---
+
+## 🎯 Buenas Prácticas
+
+### DO ✅
+- Hacer commits pequeños y frecuentes
+- Escribir mensajes de commit descriptivos
+- Sincronizar con main diariamente
+- Probar código antes de hacer commit
+- Pedir ayuda si hay conflictos
+- Revisar Pull Requests de compañeros
+
+### DON'T ❌
+- NO hacer commit de archivos .env
+- NO subir vendor/ o node_modules/
+- NO hacer cambios directamente en main
+- NO ignorar conflictos de merge
+- NO hacer commits masivos sin descripción
+- NO borrar ramas de otros
+
+---
+
+## 📞 Coordinación de Equipo
+
+### Líder de Proyecto: Simón
+- Crear repositorio
+- Revisar Pull Requests
+- Hacer merges finales
+- Resolver conflictos complejos
+
+### Soporte Técnico: Genesis
+- Ayudar con problemas de Git
+- Resolver conflictos de merge
+- Revisar configuraciones
+
+### Comunicación
+- Grupo de WhatsApp/Telegram para coordinar
+- Avisar antes de hacer cambios grandes
+- Compartir pantalla si hay problemas
+- Reunión breve al inicio de cada día
+
+---
+
+## 🚨 Problemas Comunes
+
+### "Permission denied"
+```bash
+# Verificar autenticación
+git config --global user.name
+git config --global user.email
+
+# Regenerar credenciales de GitHub
+```
+
+### "Your branch is behind"
+```bash
+# Actualizar rama
+git pull origin nombre-rama
+```
+
+### "Merge conflict"
+```bash
+# Ver archivos en conflicto
+git status
+
+# Resolver manualmente y luego:
+git add .
+git commit -m "fix: Resolver conflictos"
+git push
+```
+
+### "Changes not staged"
+```bash
+# Agregar cambios
+git add .
+git commit -m "mensaje"
+```
+
+---
+
+## 📚 Recursos Adicionales
+
+- [Guía de Git en español](https://git-scm.com/book/es/v2)
+- [GitHub Desktop](https://desktop.github.com/) (alternativa visual)
+- [GitKraken](https://www.gitkraken.com/) (cliente visual)
+- [Conventional Commits](https://www.conventionalcommits.org/)
+
+---
+
+## ✅ Resultado Final
+
+Al completar los 3 días, tendrán:
+
+1. ✅ Repositorio completo en GitHub
+2. ✅ 6 ramas feature con código organizado
+3. ✅ Historial de commits claro
+4. ✅ Pull Requests documentados
+5. ✅ Rama main con proyecto integrado
+6. ✅ Todos con copia local actualizada
+
+---
+
+## 🎉 ¡Éxito!
+
+Siguiendo esta guía, los 6 desarrolladores habrán subido exitosamente el proyecto completo a GitHub de manera organizada y profesional.
+
+**¡Buen trabajo en equipo!** 🚀
